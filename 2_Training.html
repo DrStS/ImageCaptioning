@@ -13118,6 +13118,7 @@ div#notebook {
 <h3 id="Question-1">Question 1<a class="anchor-link" href="#Question-1">&#182;</a></h3><p><strong>Question:</strong> Describe your CNN-RNN architecture in detail.  With this architecture in mind, how did you select the values of the variables in Task 1?  If you consulted a research paper detailing a successful implementation of an image captioning model, please provide the reference.</p>
 <p><strong>Answer:</strong></p>
 <ul>
+<li>ResNet-50</li>
 <li>Word Embedding of words: provided captions are embedded into a word tensor of embed_size.</li>
 <li>LSTM: Inputs the object detection of ResNet50 and the embedded words </li>
 <li>Fully connected Layer: Maps the inner states of the LSTM to a predicted word</li>
@@ -13129,7 +13130,16 @@ div#notebook {
 <span class="n">embed_size</span> <span class="o">=</span> <span class="mi">512</span>           <span class="c1"># dimensionality of image and word embeddings </span>
 <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span>                   <span class="c1"># learning rate for Adam</span>
 </pre></div>
-<p>This renders a GPU memory consumption of around 7GB</p>
+<p>My model uses an encoder-decoder architecture. The encoder is a ResNet50 and extracts
+features from the given image tensor (Simplified version of the &quot;Show and Tell: A Neural Image
+Captioning Generator&quot;). I removed the last layer of the ResNet50 as discussed in
+<a href="https://discuss.pytorch.org/t/how-to-delete-layer-in-pretrained-model/17648/4">https://discuss.pytorch.org/t/how-to-delete-layer-in-pretrained-model/17648/4</a> and added an
+embedding layer of size 512. I do not use softmax compared to the paper. The fully connected
+layer of the ResNet50 is passed as input to a LSTM (hidden size and embed size is set to 512). A
+good compromise between memory consumption (7GB GPU memory were used) and loss
+function reduction seems to be a batch size of 256. I also tested 64 and 128. Because of runtime
+I limited the training to 4 epochs (each epoch takes around 8000sec on my RTX 2070S).
+Vocabulary count threshold is set to 4 in order to remove infrequent words.</p>
 <h3 id="(Optional)-Task-#2">(Optional) Task #2<a class="anchor-link" href="#(Optional)-Task-#2">&#182;</a></h3><p>Note that we have provided a recommended image transform <code>transform_train</code> for pre-processing the training images, but you are welcome (and encouraged!) to modify it as you wish.  When modifying this transform, keep in mind that:</p>
 <ul>
 <li>the images in the dataset have varying heights and widths, and </li>
@@ -13143,7 +13153,12 @@ div#notebook {
 <pre><code>params = list(decoder.parameters()) + list(encoder.embed.parameters())</code></pre>
 <h3 id="Question-3">Question 3<a class="anchor-link" href="#Question-3">&#182;</a></h3><p><strong>Question:</strong> How did you select the trainable parameters of your architecture?  Why do you think this is a good choice?</p>
 <p><strong>Answer:</strong></p>
-<p>I used 512 hidden layers for the LSTM based on this <a href="https://ai.stackexchange.com/questions/3156/how-to-select-number-of-hidden-layers-and-number-of-memory-cells-in-an-lstm">thread</a></p>
+<p>Only the weights in the embedding layer of the encoder and all the weight of the decoder are trained while the other parameters of the encoder will not be trained because a pre-trained model is used.</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torchsummaryX</span> <span class="kn">import</span> <span class="n">summary</span>
+<span class="n">summary</span><span class="p">(</span><span class="n">encoder</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">256</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">))</span><span class="o">.</span><span class="n">cuda</span><span class="p">())</span>
+<span class="n">summary</span><span class="p">(</span><span class="n">decoder</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">256</span><span class="p">,</span><span class="mi">512</span><span class="p">),)</span><span class="o">.</span><span class="n">cuda</span><span class="p">(),</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">256</span><span class="p">,</span><span class="mi">16</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">())</span>
+</pre></div>
+<p>12.305.123 for LSTM + 1.049.088 ResNet50 = 13.354.211 trainable parameters in total for encoder+decoder</p>
 <h3 id="Task-#4">Task #4<a class="anchor-link" href="#Task-#4">&#182;</a></h3><p>Finally, you will select an <a href="http://pytorch.org/docs/master/optim.html#torch.optim.Optimizer">optimizer</a>.</p>
 <h3 id="Question-4">Question 4<a class="anchor-link" href="#Question-4">&#182;</a></h3><p><strong>Question:</strong> How did you select the optimizer used to train your model?</p>
 <p><strong>Answer:</strong></p>
@@ -13154,7 +13169,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[3]:</div>
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
@@ -13239,7 +13254,7 @@ div#notebook {
 loading annotations into memory...
 Done (t=0.94s)
 creating index...
-index created!</pre>
+</pre>
 </div>
 </div>
 
@@ -13249,7 +13264,7 @@ index created!</pre>
 
 
 <div class="output_subarea output_stream output_stderr output_text">
-<pre>  0%|          | 585/414113 [00:00&lt;01:11, 5799.28it/s]</pre>
+<pre>  0%|          | 600/414113 [00:00&lt;01:09, 5947.91it/s]</pre>
 </div>
 </div>
 
@@ -13259,7 +13274,7 @@ index created!</pre>
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>
+<pre>index created!
 Obtaining caption lengths...
 </pre>
 </div>
@@ -13271,9 +13286,611 @@ Obtaining caption lengths...
 
 
 <div class="output_subarea output_stream output_stderr output_text">
-<pre>100%|██████████| 414113/414113 [01:06&lt;00:00, 6237.88it/s]
+<pre>100%|██████████| 414113/414113 [01:00&lt;00:00, 6813.24it/s]
 </pre>
 </div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">torchsummaryX</span> <span class="kn">import</span> <span class="n">summary</span>
+<span class="n">summary</span><span class="p">(</span><span class="n">encoder</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">256</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">))</span><span class="o">.</span><span class="n">cuda</span><span class="p">())</span>
+<span class="n">summary</span><span class="p">(</span><span class="n">decoder</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">256</span><span class="p">,</span><span class="mi">512</span><span class="p">),)</span><span class="o">.</span><span class="n">cuda</span><span class="p">(),</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">256</span><span class="p">,</span><span class="mi">16</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">())</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>======================================================================================================
+                                               Kernel Shape  \
+Layer                                                         
+0_resnet.Conv2d_0                             [3, 64, 7, 7]   
+1_resnet.BatchNorm2d_1                                 [64]   
+2_resnet.ReLU_2                                           -   
+3_resnet.MaxPool2d_3                                      -   
+4_resnet.4.0.Conv2d_conv1                    [64, 64, 1, 1]   
+5_resnet.4.0.BatchNorm2d_bn1                           [64]   
+6_resnet.4.0.ReLU_relu                                    -   
+7_resnet.4.0.Conv2d_conv2                    [64, 64, 3, 3]   
+8_resnet.4.0.BatchNorm2d_bn2                           [64]   
+9_resnet.4.0.ReLU_relu                                    -   
+10_resnet.4.0.Conv2d_conv3                  [64, 256, 1, 1]   
+11_resnet.4.0.BatchNorm2d_bn3                         [256]   
+12_resnet.4.0.downsample.Conv2d_0           [64, 256, 1, 1]   
+13_resnet.4.0.downsample.BatchNorm2d_1                [256]   
+14_resnet.4.0.ReLU_relu                                   -   
+15_resnet.4.1.Conv2d_conv1                  [256, 64, 1, 1]   
+16_resnet.4.1.BatchNorm2d_bn1                          [64]   
+17_resnet.4.1.ReLU_relu                                   -   
+18_resnet.4.1.Conv2d_conv2                   [64, 64, 3, 3]   
+19_resnet.4.1.BatchNorm2d_bn2                          [64]   
+20_resnet.4.1.ReLU_relu                                   -   
+21_resnet.4.1.Conv2d_conv3                  [64, 256, 1, 1]   
+22_resnet.4.1.BatchNorm2d_bn3                         [256]   
+23_resnet.4.1.ReLU_relu                                   -   
+24_resnet.4.2.Conv2d_conv1                  [256, 64, 1, 1]   
+25_resnet.4.2.BatchNorm2d_bn1                          [64]   
+26_resnet.4.2.ReLU_relu                                   -   
+27_resnet.4.2.Conv2d_conv2                   [64, 64, 3, 3]   
+28_resnet.4.2.BatchNorm2d_bn2                          [64]   
+29_resnet.4.2.ReLU_relu                                   -   
+30_resnet.4.2.Conv2d_conv3                  [64, 256, 1, 1]   
+31_resnet.4.2.BatchNorm2d_bn3                         [256]   
+32_resnet.4.2.ReLU_relu                                   -   
+33_resnet.5.0.Conv2d_conv1                 [256, 128, 1, 1]   
+34_resnet.5.0.BatchNorm2d_bn1                         [128]   
+35_resnet.5.0.ReLU_relu                                   -   
+36_resnet.5.0.Conv2d_conv2                 [128, 128, 3, 3]   
+37_resnet.5.0.BatchNorm2d_bn2                         [128]   
+38_resnet.5.0.ReLU_relu                                   -   
+39_resnet.5.0.Conv2d_conv3                 [128, 512, 1, 1]   
+40_resnet.5.0.BatchNorm2d_bn3                         [512]   
+41_resnet.5.0.downsample.Conv2d_0          [256, 512, 1, 1]   
+42_resnet.5.0.downsample.BatchNorm2d_1                [512]   
+43_resnet.5.0.ReLU_relu                                   -   
+44_resnet.5.1.Conv2d_conv1                 [512, 128, 1, 1]   
+45_resnet.5.1.BatchNorm2d_bn1                         [128]   
+46_resnet.5.1.ReLU_relu                                   -   
+47_resnet.5.1.Conv2d_conv2                 [128, 128, 3, 3]   
+48_resnet.5.1.BatchNorm2d_bn2                         [128]   
+49_resnet.5.1.ReLU_relu                                   -   
+50_resnet.5.1.Conv2d_conv3                 [128, 512, 1, 1]   
+51_resnet.5.1.BatchNorm2d_bn3                         [512]   
+52_resnet.5.1.ReLU_relu                                   -   
+53_resnet.5.2.Conv2d_conv1                 [512, 128, 1, 1]   
+54_resnet.5.2.BatchNorm2d_bn1                         [128]   
+55_resnet.5.2.ReLU_relu                                   -   
+56_resnet.5.2.Conv2d_conv2                 [128, 128, 3, 3]   
+57_resnet.5.2.BatchNorm2d_bn2                         [128]   
+58_resnet.5.2.ReLU_relu                                   -   
+59_resnet.5.2.Conv2d_conv3                 [128, 512, 1, 1]   
+60_resnet.5.2.BatchNorm2d_bn3                         [512]   
+61_resnet.5.2.ReLU_relu                                   -   
+62_resnet.5.3.Conv2d_conv1                 [512, 128, 1, 1]   
+63_resnet.5.3.BatchNorm2d_bn1                         [128]   
+64_resnet.5.3.ReLU_relu                                   -   
+65_resnet.5.3.Conv2d_conv2                 [128, 128, 3, 3]   
+66_resnet.5.3.BatchNorm2d_bn2                         [128]   
+67_resnet.5.3.ReLU_relu                                   -   
+68_resnet.5.3.Conv2d_conv3                 [128, 512, 1, 1]   
+69_resnet.5.3.BatchNorm2d_bn3                         [512]   
+70_resnet.5.3.ReLU_relu                                   -   
+71_resnet.6.0.Conv2d_conv1                 [512, 256, 1, 1]   
+72_resnet.6.0.BatchNorm2d_bn1                         [256]   
+73_resnet.6.0.ReLU_relu                                   -   
+74_resnet.6.0.Conv2d_conv2                 [256, 256, 3, 3]   
+75_resnet.6.0.BatchNorm2d_bn2                         [256]   
+76_resnet.6.0.ReLU_relu                                   -   
+77_resnet.6.0.Conv2d_conv3                [256, 1024, 1, 1]   
+78_resnet.6.0.BatchNorm2d_bn3                        [1024]   
+79_resnet.6.0.downsample.Conv2d_0         [512, 1024, 1, 1]   
+80_resnet.6.0.downsample.BatchNorm2d_1               [1024]   
+81_resnet.6.0.ReLU_relu                                   -   
+82_resnet.6.1.Conv2d_conv1                [1024, 256, 1, 1]   
+83_resnet.6.1.BatchNorm2d_bn1                         [256]   
+84_resnet.6.1.ReLU_relu                                   -   
+85_resnet.6.1.Conv2d_conv2                 [256, 256, 3, 3]   
+86_resnet.6.1.BatchNorm2d_bn2                         [256]   
+87_resnet.6.1.ReLU_relu                                   -   
+88_resnet.6.1.Conv2d_conv3                [256, 1024, 1, 1]   
+89_resnet.6.1.BatchNorm2d_bn3                        [1024]   
+90_resnet.6.1.ReLU_relu                                   -   
+91_resnet.6.2.Conv2d_conv1                [1024, 256, 1, 1]   
+92_resnet.6.2.BatchNorm2d_bn1                         [256]   
+93_resnet.6.2.ReLU_relu                                   -   
+94_resnet.6.2.Conv2d_conv2                 [256, 256, 3, 3]   
+95_resnet.6.2.BatchNorm2d_bn2                         [256]   
+96_resnet.6.2.ReLU_relu                                   -   
+97_resnet.6.2.Conv2d_conv3                [256, 1024, 1, 1]   
+98_resnet.6.2.BatchNorm2d_bn3                        [1024]   
+99_resnet.6.2.ReLU_relu                                   -   
+100_resnet.6.3.Conv2d_conv1               [1024, 256, 1, 1]   
+101_resnet.6.3.BatchNorm2d_bn1                        [256]   
+102_resnet.6.3.ReLU_relu                                  -   
+103_resnet.6.3.Conv2d_conv2                [256, 256, 3, 3]   
+104_resnet.6.3.BatchNorm2d_bn2                        [256]   
+105_resnet.6.3.ReLU_relu                                  -   
+106_resnet.6.3.Conv2d_conv3               [256, 1024, 1, 1]   
+107_resnet.6.3.BatchNorm2d_bn3                       [1024]   
+108_resnet.6.3.ReLU_relu                                  -   
+109_resnet.6.4.Conv2d_conv1               [1024, 256, 1, 1]   
+110_resnet.6.4.BatchNorm2d_bn1                        [256]   
+111_resnet.6.4.ReLU_relu                                  -   
+112_resnet.6.4.Conv2d_conv2                [256, 256, 3, 3]   
+113_resnet.6.4.BatchNorm2d_bn2                        [256]   
+114_resnet.6.4.ReLU_relu                                  -   
+115_resnet.6.4.Conv2d_conv3               [256, 1024, 1, 1]   
+116_resnet.6.4.BatchNorm2d_bn3                       [1024]   
+117_resnet.6.4.ReLU_relu                                  -   
+118_resnet.6.5.Conv2d_conv1               [1024, 256, 1, 1]   
+119_resnet.6.5.BatchNorm2d_bn1                        [256]   
+120_resnet.6.5.ReLU_relu                                  -   
+121_resnet.6.5.Conv2d_conv2                [256, 256, 3, 3]   
+122_resnet.6.5.BatchNorm2d_bn2                        [256]   
+123_resnet.6.5.ReLU_relu                                  -   
+124_resnet.6.5.Conv2d_conv3               [256, 1024, 1, 1]   
+125_resnet.6.5.BatchNorm2d_bn3                       [1024]   
+126_resnet.6.5.ReLU_relu                                  -   
+127_resnet.7.0.Conv2d_conv1               [1024, 512, 1, 1]   
+128_resnet.7.0.BatchNorm2d_bn1                        [512]   
+129_resnet.7.0.ReLU_relu                                  -   
+130_resnet.7.0.Conv2d_conv2                [512, 512, 3, 3]   
+131_resnet.7.0.BatchNorm2d_bn2                        [512]   
+132_resnet.7.0.ReLU_relu                                  -   
+133_resnet.7.0.Conv2d_conv3               [512, 2048, 1, 1]   
+134_resnet.7.0.BatchNorm2d_bn3                       [2048]   
+135_resnet.7.0.downsample.Conv2d_0       [1024, 2048, 1, 1]   
+136_resnet.7.0.downsample.BatchNorm2d_1              [2048]   
+137_resnet.7.0.ReLU_relu                                  -   
+138_resnet.7.1.Conv2d_conv1               [2048, 512, 1, 1]   
+139_resnet.7.1.BatchNorm2d_bn1                        [512]   
+140_resnet.7.1.ReLU_relu                                  -   
+141_resnet.7.1.Conv2d_conv2                [512, 512, 3, 3]   
+142_resnet.7.1.BatchNorm2d_bn2                        [512]   
+143_resnet.7.1.ReLU_relu                                  -   
+144_resnet.7.1.Conv2d_conv3               [512, 2048, 1, 1]   
+145_resnet.7.1.BatchNorm2d_bn3                       [2048]   
+146_resnet.7.1.ReLU_relu                                  -   
+147_resnet.7.2.Conv2d_conv1               [2048, 512, 1, 1]   
+148_resnet.7.2.BatchNorm2d_bn1                        [512]   
+149_resnet.7.2.ReLU_relu                                  -   
+150_resnet.7.2.Conv2d_conv2                [512, 512, 3, 3]   
+151_resnet.7.2.BatchNorm2d_bn2                        [512]   
+152_resnet.7.2.ReLU_relu                                  -   
+153_resnet.7.2.Conv2d_conv3               [512, 2048, 1, 1]   
+154_resnet.7.2.BatchNorm2d_bn3                       [2048]   
+155_resnet.7.2.ReLU_relu                                  -   
+156_resnet.AdaptiveAvgPool2d_8                            -   
+157_embed                                       [2048, 512]   
+
+                                                Output Shape     Params  \
+Layer                                                                     
+0_resnet.Conv2d_0                        [256, 64, 112, 112]          -   
+1_resnet.BatchNorm2d_1                   [256, 64, 112, 112]          -   
+2_resnet.ReLU_2                          [256, 64, 112, 112]          -   
+3_resnet.MaxPool2d_3                       [256, 64, 56, 56]          -   
+4_resnet.4.0.Conv2d_conv1                  [256, 64, 56, 56]          -   
+5_resnet.4.0.BatchNorm2d_bn1               [256, 64, 56, 56]          -   
+6_resnet.4.0.ReLU_relu                     [256, 64, 56, 56]          -   
+7_resnet.4.0.Conv2d_conv2                  [256, 64, 56, 56]          -   
+8_resnet.4.0.BatchNorm2d_bn2               [256, 64, 56, 56]          -   
+9_resnet.4.0.ReLU_relu                     [256, 64, 56, 56]          -   
+10_resnet.4.0.Conv2d_conv3                [256, 256, 56, 56]          -   
+11_resnet.4.0.BatchNorm2d_bn3             [256, 256, 56, 56]          -   
+12_resnet.4.0.downsample.Conv2d_0         [256, 256, 56, 56]          -   
+13_resnet.4.0.downsample.BatchNorm2d_1    [256, 256, 56, 56]          -   
+14_resnet.4.0.ReLU_relu                   [256, 256, 56, 56]          -   
+15_resnet.4.1.Conv2d_conv1                 [256, 64, 56, 56]          -   
+16_resnet.4.1.BatchNorm2d_bn1              [256, 64, 56, 56]          -   
+17_resnet.4.1.ReLU_relu                    [256, 64, 56, 56]          -   
+18_resnet.4.1.Conv2d_conv2                 [256, 64, 56, 56]          -   
+19_resnet.4.1.BatchNorm2d_bn2              [256, 64, 56, 56]          -   
+20_resnet.4.1.ReLU_relu                    [256, 64, 56, 56]          -   
+21_resnet.4.1.Conv2d_conv3                [256, 256, 56, 56]          -   
+22_resnet.4.1.BatchNorm2d_bn3             [256, 256, 56, 56]          -   
+23_resnet.4.1.ReLU_relu                   [256, 256, 56, 56]          -   
+24_resnet.4.2.Conv2d_conv1                 [256, 64, 56, 56]          -   
+25_resnet.4.2.BatchNorm2d_bn1              [256, 64, 56, 56]          -   
+26_resnet.4.2.ReLU_relu                    [256, 64, 56, 56]          -   
+27_resnet.4.2.Conv2d_conv2                 [256, 64, 56, 56]          -   
+28_resnet.4.2.BatchNorm2d_bn2              [256, 64, 56, 56]          -   
+29_resnet.4.2.ReLU_relu                    [256, 64, 56, 56]          -   
+30_resnet.4.2.Conv2d_conv3                [256, 256, 56, 56]          -   
+31_resnet.4.2.BatchNorm2d_bn3             [256, 256, 56, 56]          -   
+32_resnet.4.2.ReLU_relu                   [256, 256, 56, 56]          -   
+33_resnet.5.0.Conv2d_conv1                [256, 128, 56, 56]          -   
+34_resnet.5.0.BatchNorm2d_bn1             [256, 128, 56, 56]          -   
+35_resnet.5.0.ReLU_relu                   [256, 128, 56, 56]          -   
+36_resnet.5.0.Conv2d_conv2                [256, 128, 28, 28]          -   
+37_resnet.5.0.BatchNorm2d_bn2             [256, 128, 28, 28]          -   
+38_resnet.5.0.ReLU_relu                   [256, 128, 28, 28]          -   
+39_resnet.5.0.Conv2d_conv3                [256, 512, 28, 28]          -   
+40_resnet.5.0.BatchNorm2d_bn3             [256, 512, 28, 28]          -   
+41_resnet.5.0.downsample.Conv2d_0         [256, 512, 28, 28]          -   
+42_resnet.5.0.downsample.BatchNorm2d_1    [256, 512, 28, 28]          -   
+43_resnet.5.0.ReLU_relu                   [256, 512, 28, 28]          -   
+44_resnet.5.1.Conv2d_conv1                [256, 128, 28, 28]          -   
+45_resnet.5.1.BatchNorm2d_bn1             [256, 128, 28, 28]          -   
+46_resnet.5.1.ReLU_relu                   [256, 128, 28, 28]          -   
+47_resnet.5.1.Conv2d_conv2                [256, 128, 28, 28]          -   
+48_resnet.5.1.BatchNorm2d_bn2             [256, 128, 28, 28]          -   
+49_resnet.5.1.ReLU_relu                   [256, 128, 28, 28]          -   
+50_resnet.5.1.Conv2d_conv3                [256, 512, 28, 28]          -   
+51_resnet.5.1.BatchNorm2d_bn3             [256, 512, 28, 28]          -   
+52_resnet.5.1.ReLU_relu                   [256, 512, 28, 28]          -   
+53_resnet.5.2.Conv2d_conv1                [256, 128, 28, 28]          -   
+54_resnet.5.2.BatchNorm2d_bn1             [256, 128, 28, 28]          -   
+55_resnet.5.2.ReLU_relu                   [256, 128, 28, 28]          -   
+56_resnet.5.2.Conv2d_conv2                [256, 128, 28, 28]          -   
+57_resnet.5.2.BatchNorm2d_bn2             [256, 128, 28, 28]          -   
+58_resnet.5.2.ReLU_relu                   [256, 128, 28, 28]          -   
+59_resnet.5.2.Conv2d_conv3                [256, 512, 28, 28]          -   
+60_resnet.5.2.BatchNorm2d_bn3             [256, 512, 28, 28]          -   
+61_resnet.5.2.ReLU_relu                   [256, 512, 28, 28]          -   
+62_resnet.5.3.Conv2d_conv1                [256, 128, 28, 28]          -   
+63_resnet.5.3.BatchNorm2d_bn1             [256, 128, 28, 28]          -   
+64_resnet.5.3.ReLU_relu                   [256, 128, 28, 28]          -   
+65_resnet.5.3.Conv2d_conv2                [256, 128, 28, 28]          -   
+66_resnet.5.3.BatchNorm2d_bn2             [256, 128, 28, 28]          -   
+67_resnet.5.3.ReLU_relu                   [256, 128, 28, 28]          -   
+68_resnet.5.3.Conv2d_conv3                [256, 512, 28, 28]          -   
+69_resnet.5.3.BatchNorm2d_bn3             [256, 512, 28, 28]          -   
+70_resnet.5.3.ReLU_relu                   [256, 512, 28, 28]          -   
+71_resnet.6.0.Conv2d_conv1                [256, 256, 28, 28]          -   
+72_resnet.6.0.BatchNorm2d_bn1             [256, 256, 28, 28]          -   
+73_resnet.6.0.ReLU_relu                   [256, 256, 28, 28]          -   
+74_resnet.6.0.Conv2d_conv2                [256, 256, 14, 14]          -   
+75_resnet.6.0.BatchNorm2d_bn2             [256, 256, 14, 14]          -   
+76_resnet.6.0.ReLU_relu                   [256, 256, 14, 14]          -   
+77_resnet.6.0.Conv2d_conv3               [256, 1024, 14, 14]          -   
+78_resnet.6.0.BatchNorm2d_bn3            [256, 1024, 14, 14]          -   
+79_resnet.6.0.downsample.Conv2d_0        [256, 1024, 14, 14]          -   
+80_resnet.6.0.downsample.BatchNorm2d_1   [256, 1024, 14, 14]          -   
+81_resnet.6.0.ReLU_relu                  [256, 1024, 14, 14]          -   
+82_resnet.6.1.Conv2d_conv1                [256, 256, 14, 14]          -   
+83_resnet.6.1.BatchNorm2d_bn1             [256, 256, 14, 14]          -   
+84_resnet.6.1.ReLU_relu                   [256, 256, 14, 14]          -   
+85_resnet.6.1.Conv2d_conv2                [256, 256, 14, 14]          -   
+86_resnet.6.1.BatchNorm2d_bn2             [256, 256, 14, 14]          -   
+87_resnet.6.1.ReLU_relu                   [256, 256, 14, 14]          -   
+88_resnet.6.1.Conv2d_conv3               [256, 1024, 14, 14]          -   
+89_resnet.6.1.BatchNorm2d_bn3            [256, 1024, 14, 14]          -   
+90_resnet.6.1.ReLU_relu                  [256, 1024, 14, 14]          -   
+91_resnet.6.2.Conv2d_conv1                [256, 256, 14, 14]          -   
+92_resnet.6.2.BatchNorm2d_bn1             [256, 256, 14, 14]          -   
+93_resnet.6.2.ReLU_relu                   [256, 256, 14, 14]          -   
+94_resnet.6.2.Conv2d_conv2                [256, 256, 14, 14]          -   
+95_resnet.6.2.BatchNorm2d_bn2             [256, 256, 14, 14]          -   
+96_resnet.6.2.ReLU_relu                   [256, 256, 14, 14]          -   
+97_resnet.6.2.Conv2d_conv3               [256, 1024, 14, 14]          -   
+98_resnet.6.2.BatchNorm2d_bn3            [256, 1024, 14, 14]          -   
+99_resnet.6.2.ReLU_relu                  [256, 1024, 14, 14]          -   
+100_resnet.6.3.Conv2d_conv1               [256, 256, 14, 14]          -   
+101_resnet.6.3.BatchNorm2d_bn1            [256, 256, 14, 14]          -   
+102_resnet.6.3.ReLU_relu                  [256, 256, 14, 14]          -   
+103_resnet.6.3.Conv2d_conv2               [256, 256, 14, 14]          -   
+104_resnet.6.3.BatchNorm2d_bn2            [256, 256, 14, 14]          -   
+105_resnet.6.3.ReLU_relu                  [256, 256, 14, 14]          -   
+106_resnet.6.3.Conv2d_conv3              [256, 1024, 14, 14]          -   
+107_resnet.6.3.BatchNorm2d_bn3           [256, 1024, 14, 14]          -   
+108_resnet.6.3.ReLU_relu                 [256, 1024, 14, 14]          -   
+109_resnet.6.4.Conv2d_conv1               [256, 256, 14, 14]          -   
+110_resnet.6.4.BatchNorm2d_bn1            [256, 256, 14, 14]          -   
+111_resnet.6.4.ReLU_relu                  [256, 256, 14, 14]          -   
+112_resnet.6.4.Conv2d_conv2               [256, 256, 14, 14]          -   
+113_resnet.6.4.BatchNorm2d_bn2            [256, 256, 14, 14]          -   
+114_resnet.6.4.ReLU_relu                  [256, 256, 14, 14]          -   
+115_resnet.6.4.Conv2d_conv3              [256, 1024, 14, 14]          -   
+116_resnet.6.4.BatchNorm2d_bn3           [256, 1024, 14, 14]          -   
+117_resnet.6.4.ReLU_relu                 [256, 1024, 14, 14]          -   
+118_resnet.6.5.Conv2d_conv1               [256, 256, 14, 14]          -   
+119_resnet.6.5.BatchNorm2d_bn1            [256, 256, 14, 14]          -   
+120_resnet.6.5.ReLU_relu                  [256, 256, 14, 14]          -   
+121_resnet.6.5.Conv2d_conv2               [256, 256, 14, 14]          -   
+122_resnet.6.5.BatchNorm2d_bn2            [256, 256, 14, 14]          -   
+123_resnet.6.5.ReLU_relu                  [256, 256, 14, 14]          -   
+124_resnet.6.5.Conv2d_conv3              [256, 1024, 14, 14]          -   
+125_resnet.6.5.BatchNorm2d_bn3           [256, 1024, 14, 14]          -   
+126_resnet.6.5.ReLU_relu                 [256, 1024, 14, 14]          -   
+127_resnet.7.0.Conv2d_conv1               [256, 512, 14, 14]          -   
+128_resnet.7.0.BatchNorm2d_bn1            [256, 512, 14, 14]          -   
+129_resnet.7.0.ReLU_relu                  [256, 512, 14, 14]          -   
+130_resnet.7.0.Conv2d_conv2                 [256, 512, 7, 7]          -   
+131_resnet.7.0.BatchNorm2d_bn2              [256, 512, 7, 7]          -   
+132_resnet.7.0.ReLU_relu                    [256, 512, 7, 7]          -   
+133_resnet.7.0.Conv2d_conv3                [256, 2048, 7, 7]          -   
+134_resnet.7.0.BatchNorm2d_bn3             [256, 2048, 7, 7]          -   
+135_resnet.7.0.downsample.Conv2d_0         [256, 2048, 7, 7]          -   
+136_resnet.7.0.downsample.BatchNorm2d_1    [256, 2048, 7, 7]          -   
+137_resnet.7.0.ReLU_relu                   [256, 2048, 7, 7]          -   
+138_resnet.7.1.Conv2d_conv1                 [256, 512, 7, 7]          -   
+139_resnet.7.1.BatchNorm2d_bn1              [256, 512, 7, 7]          -   
+140_resnet.7.1.ReLU_relu                    [256, 512, 7, 7]          -   
+141_resnet.7.1.Conv2d_conv2                 [256, 512, 7, 7]          -   
+142_resnet.7.1.BatchNorm2d_bn2              [256, 512, 7, 7]          -   
+143_resnet.7.1.ReLU_relu                    [256, 512, 7, 7]          -   
+144_resnet.7.1.Conv2d_conv3                [256, 2048, 7, 7]          -   
+145_resnet.7.1.BatchNorm2d_bn3             [256, 2048, 7, 7]          -   
+146_resnet.7.1.ReLU_relu                   [256, 2048, 7, 7]          -   
+147_resnet.7.2.Conv2d_conv1                 [256, 512, 7, 7]          -   
+148_resnet.7.2.BatchNorm2d_bn1              [256, 512, 7, 7]          -   
+149_resnet.7.2.ReLU_relu                    [256, 512, 7, 7]          -   
+150_resnet.7.2.Conv2d_conv2                 [256, 512, 7, 7]          -   
+151_resnet.7.2.BatchNorm2d_bn2              [256, 512, 7, 7]          -   
+152_resnet.7.2.ReLU_relu                    [256, 512, 7, 7]          -   
+153_resnet.7.2.Conv2d_conv3                [256, 2048, 7, 7]          -   
+154_resnet.7.2.BatchNorm2d_bn3             [256, 2048, 7, 7]          -   
+155_resnet.7.2.ReLU_relu                   [256, 2048, 7, 7]          -   
+156_resnet.AdaptiveAvgPool2d_8             [256, 2048, 1, 1]          -   
+157_embed                                         [256, 512]  1.049088M   
+
+                                         Mult-Adds  
+Layer                                               
+0_resnet.Conv2d_0                                -  
+1_resnet.BatchNorm2d_1                           -  
+2_resnet.ReLU_2                                  -  
+3_resnet.MaxPool2d_3                             -  
+4_resnet.4.0.Conv2d_conv1                        -  
+5_resnet.4.0.BatchNorm2d_bn1                     -  
+6_resnet.4.0.ReLU_relu                           -  
+7_resnet.4.0.Conv2d_conv2                        -  
+8_resnet.4.0.BatchNorm2d_bn2                     -  
+9_resnet.4.0.ReLU_relu                           -  
+10_resnet.4.0.Conv2d_conv3                       -  
+11_resnet.4.0.BatchNorm2d_bn3                    -  
+12_resnet.4.0.downsample.Conv2d_0                -  
+13_resnet.4.0.downsample.BatchNorm2d_1           -  
+14_resnet.4.0.ReLU_relu                          -  
+15_resnet.4.1.Conv2d_conv1                       -  
+16_resnet.4.1.BatchNorm2d_bn1                    -  
+17_resnet.4.1.ReLU_relu                          -  
+18_resnet.4.1.Conv2d_conv2                       -  
+19_resnet.4.1.BatchNorm2d_bn2                    -  
+20_resnet.4.1.ReLU_relu                          -  
+21_resnet.4.1.Conv2d_conv3                       -  
+22_resnet.4.1.BatchNorm2d_bn3                    -  
+23_resnet.4.1.ReLU_relu                          -  
+24_resnet.4.2.Conv2d_conv1                       -  
+25_resnet.4.2.BatchNorm2d_bn1                    -  
+26_resnet.4.2.ReLU_relu                          -  
+27_resnet.4.2.Conv2d_conv2                       -  
+28_resnet.4.2.BatchNorm2d_bn2                    -  
+29_resnet.4.2.ReLU_relu                          -  
+30_resnet.4.2.Conv2d_conv3                       -  
+31_resnet.4.2.BatchNorm2d_bn3                    -  
+32_resnet.4.2.ReLU_relu                          -  
+33_resnet.5.0.Conv2d_conv1                       -  
+34_resnet.5.0.BatchNorm2d_bn1                    -  
+35_resnet.5.0.ReLU_relu                          -  
+36_resnet.5.0.Conv2d_conv2                       -  
+37_resnet.5.0.BatchNorm2d_bn2                    -  
+38_resnet.5.0.ReLU_relu                          -  
+39_resnet.5.0.Conv2d_conv3                       -  
+40_resnet.5.0.BatchNorm2d_bn3                    -  
+41_resnet.5.0.downsample.Conv2d_0                -  
+42_resnet.5.0.downsample.BatchNorm2d_1           -  
+43_resnet.5.0.ReLU_relu                          -  
+44_resnet.5.1.Conv2d_conv1                       -  
+45_resnet.5.1.BatchNorm2d_bn1                    -  
+46_resnet.5.1.ReLU_relu                          -  
+47_resnet.5.1.Conv2d_conv2                       -  
+48_resnet.5.1.BatchNorm2d_bn2                    -  
+49_resnet.5.1.ReLU_relu                          -  
+50_resnet.5.1.Conv2d_conv3                       -  
+51_resnet.5.1.BatchNorm2d_bn3                    -  
+52_resnet.5.1.ReLU_relu                          -  
+53_resnet.5.2.Conv2d_conv1                       -  
+54_resnet.5.2.BatchNorm2d_bn1                    -  
+55_resnet.5.2.ReLU_relu                          -  
+56_resnet.5.2.Conv2d_conv2                       -  
+57_resnet.5.2.BatchNorm2d_bn2                    -  
+58_resnet.5.2.ReLU_relu                          -  
+59_resnet.5.2.Conv2d_conv3                       -  
+60_resnet.5.2.BatchNorm2d_bn3                    -  
+61_resnet.5.2.ReLU_relu                          -  
+62_resnet.5.3.Conv2d_conv1                       -  
+63_resnet.5.3.BatchNorm2d_bn1                    -  
+64_resnet.5.3.ReLU_relu                          -  
+65_resnet.5.3.Conv2d_conv2                       -  
+66_resnet.5.3.BatchNorm2d_bn2                    -  
+67_resnet.5.3.ReLU_relu                          -  
+68_resnet.5.3.Conv2d_conv3                       -  
+69_resnet.5.3.BatchNorm2d_bn3                    -  
+70_resnet.5.3.ReLU_relu                          -  
+71_resnet.6.0.Conv2d_conv1                       -  
+72_resnet.6.0.BatchNorm2d_bn1                    -  
+73_resnet.6.0.ReLU_relu                          -  
+74_resnet.6.0.Conv2d_conv2                       -  
+75_resnet.6.0.BatchNorm2d_bn2                    -  
+76_resnet.6.0.ReLU_relu                          -  
+77_resnet.6.0.Conv2d_conv3                       -  
+78_resnet.6.0.BatchNorm2d_bn3                    -  
+79_resnet.6.0.downsample.Conv2d_0                -  
+80_resnet.6.0.downsample.BatchNorm2d_1           -  
+81_resnet.6.0.ReLU_relu                          -  
+82_resnet.6.1.Conv2d_conv1                       -  
+83_resnet.6.1.BatchNorm2d_bn1                    -  
+84_resnet.6.1.ReLU_relu                          -  
+85_resnet.6.1.Conv2d_conv2                       -  
+86_resnet.6.1.BatchNorm2d_bn2                    -  
+87_resnet.6.1.ReLU_relu                          -  
+88_resnet.6.1.Conv2d_conv3                       -  
+89_resnet.6.1.BatchNorm2d_bn3                    -  
+90_resnet.6.1.ReLU_relu                          -  
+91_resnet.6.2.Conv2d_conv1                       -  
+92_resnet.6.2.BatchNorm2d_bn1                    -  
+93_resnet.6.2.ReLU_relu                          -  
+94_resnet.6.2.Conv2d_conv2                       -  
+95_resnet.6.2.BatchNorm2d_bn2                    -  
+96_resnet.6.2.ReLU_relu                          -  
+97_resnet.6.2.Conv2d_conv3                       -  
+98_resnet.6.2.BatchNorm2d_bn3                    -  
+99_resnet.6.2.ReLU_relu                          -  
+100_resnet.6.3.Conv2d_conv1                      -  
+101_resnet.6.3.BatchNorm2d_bn1                   -  
+102_resnet.6.3.ReLU_relu                         -  
+103_resnet.6.3.Conv2d_conv2                      -  
+104_resnet.6.3.BatchNorm2d_bn2                   -  
+105_resnet.6.3.ReLU_relu                         -  
+106_resnet.6.3.Conv2d_conv3                      -  
+107_resnet.6.3.BatchNorm2d_bn3                   -  
+108_resnet.6.3.ReLU_relu                         -  
+109_resnet.6.4.Conv2d_conv1                      -  
+110_resnet.6.4.BatchNorm2d_bn1                   -  
+111_resnet.6.4.ReLU_relu                         -  
+112_resnet.6.4.Conv2d_conv2                      -  
+113_resnet.6.4.BatchNorm2d_bn2                   -  
+114_resnet.6.4.ReLU_relu                         -  
+115_resnet.6.4.Conv2d_conv3                      -  
+116_resnet.6.4.BatchNorm2d_bn3                   -  
+117_resnet.6.4.ReLU_relu                         -  
+118_resnet.6.5.Conv2d_conv1                      -  
+119_resnet.6.5.BatchNorm2d_bn1                   -  
+120_resnet.6.5.ReLU_relu                         -  
+121_resnet.6.5.Conv2d_conv2                      -  
+122_resnet.6.5.BatchNorm2d_bn2                   -  
+123_resnet.6.5.ReLU_relu                         -  
+124_resnet.6.5.Conv2d_conv3                      -  
+125_resnet.6.5.BatchNorm2d_bn3                   -  
+126_resnet.6.5.ReLU_relu                         -  
+127_resnet.7.0.Conv2d_conv1                      -  
+128_resnet.7.0.BatchNorm2d_bn1                   -  
+129_resnet.7.0.ReLU_relu                         -  
+130_resnet.7.0.Conv2d_conv2                      -  
+131_resnet.7.0.BatchNorm2d_bn2                   -  
+132_resnet.7.0.ReLU_relu                         -  
+133_resnet.7.0.Conv2d_conv3                      -  
+134_resnet.7.0.BatchNorm2d_bn3                   -  
+135_resnet.7.0.downsample.Conv2d_0               -  
+136_resnet.7.0.downsample.BatchNorm2d_1          -  
+137_resnet.7.0.ReLU_relu                         -  
+138_resnet.7.1.Conv2d_conv1                      -  
+139_resnet.7.1.BatchNorm2d_bn1                   -  
+140_resnet.7.1.ReLU_relu                         -  
+141_resnet.7.1.Conv2d_conv2                      -  
+142_resnet.7.1.BatchNorm2d_bn2                   -  
+143_resnet.7.1.ReLU_relu                         -  
+144_resnet.7.1.Conv2d_conv3                      -  
+145_resnet.7.1.BatchNorm2d_bn3                   -  
+146_resnet.7.1.ReLU_relu                         -  
+147_resnet.7.2.Conv2d_conv1                      -  
+148_resnet.7.2.BatchNorm2d_bn1                   -  
+149_resnet.7.2.ReLU_relu                         -  
+150_resnet.7.2.Conv2d_conv2                      -  
+151_resnet.7.2.BatchNorm2d_bn2                   -  
+152_resnet.7.2.ReLU_relu                         -  
+153_resnet.7.2.Conv2d_conv3                      -  
+154_resnet.7.2.BatchNorm2d_bn3                   -  
+155_resnet.7.2.ReLU_relu                         -  
+156_resnet.AdaptiveAvgPool2d_8                   -  
+157_embed                                1.048576M  
+------------------------------------------------------------------------------------------------------
+                          Totals
+Total params           24.55712M
+Trainable params       1.049088M
+Non-trainable params  23.508032M
+Mult-Adds              1.048576M
+======================================================================================================
+===================================================================
+                  Kernel Shape     Output Shape   Params  Mult-Adds
+Layer                                                              
+0_word_embeddings  [512, 9955]   [256, 15, 512]  5096960    5096960
+1_lstm                       -   [256, 16, 512]  2101248    2097152
+2_hidden2tag       [512, 9955]  [256, 16, 9955]  5106915    5096960
+-------------------------------------------------------------------
+                        Totals
+Total params          12305123
+Trainable params      12305123
+Non-trainable params         0
+Mult-Adds             12291072
+===================================================================
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[2]:</div>
+
+
+
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Kernel Shape</th>
+      <th>Output Shape</th>
+      <th>Params</th>
+      <th>Mult-Adds</th>
+    </tr>
+    <tr>
+      <th>Layer</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0_word_embeddings</th>
+      <td>[512, 9955]</td>
+      <td>[256, 15, 512]</td>
+      <td>5096960</td>
+      <td>5096960</td>
+    </tr>
+    <tr>
+      <th>1_lstm</th>
+      <td>-</td>
+      <td>[256, 16, 512]</td>
+      <td>2101248</td>
+      <td>2097152</td>
+    </tr>
+    <tr>
+      <th>2_hidden2tag</th>
+      <td>[512, 9955]</td>
+      <td>[256, 16, 9955]</td>
+      <td>5106915</td>
+      <td>5096960</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
 </div>
 
 </div>
@@ -13302,7 +13919,7 @@ Obtaining caption lengths...
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[6]:</div>
+<div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">torch.utils.data</span> <span class="k">as</span> <span class="nn">data</span>
@@ -13401,7 +14018,7 @@ Obtaining caption lengths...
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>Epoch [3/3], Step [1/1618], Loss: 1.8877, Perplexity: 6.6043, Time elapsed: 17.9 </pre>
+<pre>Epoch [3/3], Step [1/1618], Loss: 2.2615, Perplexity: 9.5972, Time elapsed: 17.6 </pre>
 </div>
 </div>
 

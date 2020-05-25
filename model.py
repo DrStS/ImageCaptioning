@@ -38,7 +38,7 @@ class DecoderRNN(nn.Module):
         ''' Define the feedforward behavior of the model.'''
         # create embedded word vectors for each word in a sentence
         captions = captions[:, :-1] # get rid of <end>
-        embeds = self.word_embeddings(captions)    
+        embeds = self.word_embeddings(captions)  
         embeds = torch.cat((features.unsqueeze(1), embeds), 1)
         lstm_out, _ = self.lstm(embeds)
         tag_outputs  = self.hidden2tag(lstm_out)
